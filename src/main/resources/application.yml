@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: zapas-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/zapas}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:1234}
+  flyway:
+    # По умолчанию (обычный Postgres) дополнительно создаётся заглушка схемы auth.
+    locations: classpath:db/migration,classpath:db/local
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
+    baseline-version: "2"
+
+server:
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+app:
+  # Пользователь, от имени которого работает API (пока во фронте нет авторизации).
+  # В Supabase он должен существовать в auth.users.
+  default-user-id: ${APP_USER_ID:00000000-0000-0000-0000-000000000001}
+  default-currency: ${APP_CURRENCY:EUR}
+  # Через запятую; пусто = CORS выключен (фронт отдаётся с того же origin)
+  cors-allowed-origins: ${APP_CORS_ORIGINS:}

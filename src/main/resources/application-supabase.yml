@@ -1,0 +1,5 @@
+# Запуск против настоящего Supabase: SPRING_PROFILES_ACTIVE=supabase
+# Заглушка auth.users не нужна — схема auth уже есть.
+spring:
+  flyway:
+    locations: classpath:db/migration
