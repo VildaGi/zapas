@@ -4,7 +4,18 @@ var DAY = 864e5;
 var tab = 'stock';
 var loaded = false;      // первое состояние получено
 var loadError = null;    // текст ошибки первой загрузки
-var S = { offset: 0, items: [], list: [], log: { surprise: [], reminders: 0, prevented: 0 }, fresh: [] };
+function emptyState() {
+    return { offset: 0, items: [], list: [], log: { surprise: [], reminders: 0, prevented: 0 }, fresh: [] };
+}
+var S = emptyState();
+
+// Авторизация
+var user = null;         // {id, email} или null
+var authChecked = false; // /api/auth/me уже спросили
+var authMode = 'login';  // 'login' | 'register'
+var authError = '';
+var authEmail = '';
+var authBusy = false;
 
 // Режим редактирования: {t:'s'|'l', id} или null. Не теряется при refresh.
 var edit = null;
@@ -12,12 +23,19 @@ var edit = null;
 // Клиентские дополнения к позициям списка: { [listItemId]: {q, u, c} }.
 // Бэкенд пока не хранит quantity/unit/note в list_items через API —
 // держим их локально, чтобы UI и share работали как в артефакте.
-var META_KEY = 'zapas-list-meta-v1';
+// Хранятся отдельно для каждого пользователя, чтобы на общем устройстве не смешивались.
+var META_KEY_BASE = 'zapas-list-meta-v2:';
+var metaKey = null;
 var listMeta = {};
-try { listMeta = JSON.parse(localStorage.getItem(META_KEY) || '{}'); } catch (e) { listMeta = {}; }
+
+function loadMeta(userId) {
+    metaKey = META_KEY_BASE + userId;
+    try { listMeta = JSON.parse(localStorage.getItem(metaKey) || '{}'); } catch (e) { listMeta = {}; }
+}
 
 function saveMeta() {
-    try { localStorage.setItem(META_KEY, JSON.stringify(listMeta)); } catch (e) {}
+    if (!metaKey) return;
+    try { localStorage.setItem(metaKey, JSON.stringify(listMeta)); } catch (e) {}
 }
 
 function metaOf(l) { return listMeta[l.id] || {}; }

@@ -13,6 +13,9 @@ spring:
 
 server:
   port: ${PORT:8080}
+  # За обратным прокси (Render, Railway, nginx...) берём схему и IP клиента из X-Forwarded-*.
+  # Нужно, чтобы cookie сессии получала флаг Secure на HTTPS.
+  forward-headers-strategy: native
 
 management:
   endpoints:
@@ -21,9 +24,8 @@ management:
         include: health
 
 app:
-  # Пользователь, от имени которого работает API (пока во фронте нет авторизации).
-  # В Supabase он должен существовать в auth.users.
-  default-user-id: ${APP_USER_ID:00000000-0000-0000-0000-000000000001}
   default-currency: ${APP_CURRENCY:EUR}
   # Через запятую; пусто = CORS выключен (фронт отдаётся с того же origin)
   cors-allowed-origins: ${APP_CORS_ORIGINS:}
+  # Сколько дней живёт сессия после входа
+  session-days: ${APP_SESSION_DAYS:30}

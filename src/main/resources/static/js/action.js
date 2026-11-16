@@ -8,6 +8,40 @@ function notifyFresh(names) {
     } catch (e) {}
 }
 
+// Вход выполнен (или сессия найдена при загрузке страницы)
+function startSession(u) {
+    user = u;
+    authChecked = true;
+    authError = '';
+    loadMeta(u.id);
+    tab = 'stock';
+    edit = null;
+    S = emptyState();
+    loaded = false;
+    loadError = null;
+    render();
+    refresh();
+}
+
+// Выход или истёкшая сессия: ничего от прошлого пользователя на экране не остаётся
+function endSession() {
+    user = null;
+    authChecked = true;
+    metaKey = null;
+    listMeta = {};
+    S = emptyState();
+    loaded = false;
+    loadError = null;
+    edit = null;
+    render();
+}
+
+onUnauthorized = function () {
+    if (!user) return;
+    endSession();
+    toast('Сессия истекла — войдите снова');
+};
+
 function applyState(st) {
     S = st;
     loaded = true;
@@ -23,7 +57,9 @@ function applyState(st) {
 
 // Загрузка состояния. silent — не показывать тост при ошибке (фоновое обновление).
 function refresh(silent) {
+    if (!user) return Promise.resolve();
     return API.getState().then(applyState).catch(function (e) {
+        if (e.status === 401) return;   // onUnauthorized уже показал форму входа
         if (!loaded) {
             loadError = e.message;
             render();
@@ -40,6 +76,7 @@ function act(promise, msg, onOk) {
         applyState(st);
         if (msg) toast(msg);
     }).catch(function (e) {
+        if (e.status === 401) return;
         toast('Ошибка: ' + e.message);
         render();
     });
@@ -62,6 +99,27 @@ function handleSubmit(e) {
     if (!kind) return;
     e.preventDefault();
     var id = f.dataset.id;
+
+    if (kind === 'auth') {
+        if (authBusy) return;
+        var em = f.elements['email'].value.trim();
+        var pw = f.elements['password'].value;
+        authEmail = em;
+        authError = '';
+        authBusy = true;
+        render();
+        var call = authMode === 'register' ? API.register(em, pw) : API.login(em, pw);
+        call.then(function (u) {
+            authBusy = false;
+            authEmail = '';
+            startSession(u);
+        }).catch(function (err) {
+            authBusy = false;
+            authError = err.message;
+            render();
+        });
+        return;
+    }
 
     if (kind === 'add-item') {
         var n = f.n.value.trim();
@@ -86,6 +144,7 @@ function handleSubmit(e) {
             }
             applyState(st);
         }).catch(function (e) {
+            if (e.status === 401) return;
             toast('Ошибка: ' + e.message);
             render();
         });
@@ -204,7 +263,17 @@ function handleClick(e) {
             break;
 
         case 'retry':
-            refresh();
+            if (!authChecked) boot(); else refresh();
+            break;
+
+        case 'authmode':
+            authMode = authMode === 'login' ? 'register' : 'login';
+            authError = '';
+            render();
+            break;
+
+        case 'logout':
+            API.logout().catch(function () {}).then(endSession);
             break;
     }
 }

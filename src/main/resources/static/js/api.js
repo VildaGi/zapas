@@ -1,3 +1,6 @@
+// Вызывается, когда сервер ответил 401 на обычный запрос (сессия истекла). Задаётся в action.js.
+var onUnauthorized = null;
+
 function apiFetch(path, opts) {
     opts = opts || {};
     opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
@@ -12,6 +15,10 @@ function apiFetch(path, opts) {
                 var err = new Error(msg);
                 err.status = r.status;
                 err.body = data;
+                // 401 на /auth/* — это ошибка входа, а не истёкшая сессия
+                if (r.status === 401 && path.indexOf('/auth/') !== 0 && typeof onUnauthorized === 'function') {
+                    onUnauthorized();
+                }
                 throw err;
             }
             return data;
@@ -21,6 +28,10 @@ function apiFetch(path, opts) {
 
 // Все методы, кроме log, возвращают актуальное состояние целиком.
 var API = {
+    me:        function ()         { return apiFetch('/auth/me'); },
+    login:     function (e, p)     { return apiFetch('/auth/login',    { method: 'POST', body: { email: e, password: p } }); },
+    register:  function (e, p)     { return apiFetch('/auth/register', { method: 'POST', body: { email: e, password: p } }); },
+    logout:    function ()         { return apiFetch('/auth/logout',   { method: 'POST' }); },
     getState:  function ()         { return apiFetch('/state'); },
     addItem:   function (body)     { return apiFetch('/items', { method: 'POST', body: body }); },
     patchItem: function (id, body) { return apiFetch('/items/' + id, { method: 'PATCH', body: body }); },

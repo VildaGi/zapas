@@ -18,16 +18,31 @@ document.querySelectorAll('nav button').forEach(function (b) {
     };
 });
 
+// Узнаём, есть ли действующая сессия: да → грузим данные, нет → форма входа
+function boot() {
+    loadError = null;
+    render();   // «Загрузка…»
+    API.me().then(startSession).catch(function (e) {
+        if (e.status === 401) {
+            authChecked = true;
+            user = null;
+            loadError = null;
+        } else {
+            loadError = e.message;
+        }
+        render();
+    });
+}
+
 initCatalog();
-render();   // экран «Загрузка…»
-refresh();
+boot();
 
 // Раз в минуту обновляем данные (дни пересчитываются, срабатывают напоминания)
 setInterval(function () {
-    if (!isTyping()) refresh(true);
+    if (user && !isTyping()) refresh(true);
 }, 60000);
 
 // При возвращении на вкладку — сразу свежие данные
 document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && !isTyping()) refresh(true);
+    if (user && !document.hidden && !isTyping()) refresh(true);
 });

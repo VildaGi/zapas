@@ -1,6 +1,9 @@
 package com.zapas.web;
 
+import com.zapas.domain.ConflictException;
 import com.zapas.domain.NotFoundException;
+import com.zapas.domain.TooManyRequestsException;
+import com.zapas.domain.UnauthorizedException;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +25,21 @@ public class ApiExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     ResponseEntity<Map<String, String>> notFound(NotFoundException e) {
         return body(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    ResponseEntity<Map<String, String>> unauthorized(UnauthorizedException e) {
+        return body(HttpStatus.UNAUTHORIZED, e.getMessage());
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    ResponseEntity<Map<String, String>> conflict(ConflictException e) {
+        return body(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    ResponseEntity<Map<String, String>> tooMany(TooManyRequestsException e) {
+        return body(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

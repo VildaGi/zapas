@@ -8,6 +8,26 @@ function render() {
     var s = document.getElementById('s');
     var v = document.getElementById('v');
 
+    document.querySelector('nav').hidden = !user;
+    document.getElementById('u').innerHTML = user
+        ? '<span>' + esc(user.email) + '</span><button data-a="logout">Выйти</button>'
+        : '';
+
+    if (!authChecked) {
+        h.textContent = 'Запас';
+        s.textContent = '';
+        v.innerHTML = loadError
+            ? '<div class="empty">Не удалось связаться с сервером:<br>' + esc(loadError) +
+            '<br><br><button class="p" data-a="retry">Повторить</button></div>'
+            : '<div class="empty">Загрузка…</div>';
+        return;
+    }
+
+    if (!user) {
+        renderAuth(h, s, v);
+        return;
+    }
+
     if (!loaded) {
         h.textContent = 'Запас';
         s.textContent = '';
@@ -212,4 +232,27 @@ function unitOpts(sel) {
     return ['шт', 'уп.', 'кг', 'г', 'л', 'мл'].map(function (u) {
         return '<option' + (u === sel ? ' selected' : '') + '>' + u + '</option>';
     }).join('');
+}
+
+// Форма входа / регистрации
+function renderAuth(h, s, v) {
+    var reg = authMode === 'register';
+    h.textContent = 'Запас';
+    s.textContent = reg
+        ? 'Создайте аккаунт — у каждого будут свои запасы и список'
+        : 'Войдите, чтобы увидеть свои запасы';
+    v.innerHTML = '<form class="termbox ef" data-f="auth">' +
+        (authError ? '<div class="err" role="alert">' + esc(authError) + '</div>' : '') +
+        '<input name="email" type="email" placeholder="Email" value="' + esc(authEmail) + '" ' +
+        'required maxlength="254" autocomplete="username">' +
+        '<input name="password" type="password" placeholder="Пароль" required ' +
+        (reg ? 'minlength="8" ' : '') + 'maxlength="200" ' +
+        'autocomplete="' + (reg ? 'new-password' : 'current-password') + '">' +
+        (reg ? '<div class="hint">Не короче 8 символов.</div>' : '') +
+        '<button class="p"' + (authBusy ? ' disabled' : '') + '>' +
+        (reg ? 'Создать аккаунт' : 'Войти') + '</button>' +
+        '</form>' +
+        '<p class="note" style="text-align:center">' +
+        (reg ? 'Уже есть аккаунт? ' : 'Нет аккаунта? ') +
+        '<button class="edit" data-a="authmode">' + (reg ? 'Войти' : 'Зарегистрироваться') + '</button></p>';
 }

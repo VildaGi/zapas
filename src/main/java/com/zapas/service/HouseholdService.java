@@ -20,4 +20,10 @@ public class HouseholdService {
         households.ensureProfile(userId);
         return households.findByUser(userId).orElseGet(() -> households.create("Мой дом", userId));
     }
+
+    /** То же, но для обычных запросов: в типичном случае это один SELECT без записи. */
+    @Transactional
+    public UUID householdOf(UUID userId) {
+        return households.findByUser(userId).orElseGet(() -> ensureFor(userId));
+    }
 }

@@ -1,41 +1,38 @@
 package com.zapas.context;
 
-import com.zapas.config.AppProperties;
-import com.zapas.service.HouseholdService;
+import com.zapas.domain.UnauthorizedException;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 /**
- * Кто сейчас делает запрос. Пока фронт без авторизации — это один настроенный пользователь
- * (app.default-user-id) и его домохозяйство. Для мультипользовательского режима достаточно
- * заменить реализацию: брать userId из JWT Supabase, а householdId — из household_members.
+ * Кто сейчас делает запрос. Пользователя кладёт в контекст AuthInterceptor (по cookie сессии)
+ * и убирает после запроса. Сервисы получают userId/householdId отсюда, поэтому каждый
+ * видит только данные своего домохозяйства.
  */
 @Component
 public class CurrentContext {
 
-    private final AppProperties props;
-    private final HouseholdService households;
-    private volatile UUID householdId;
+    private static final ThreadLocal<AuthUser> CURRENT = new ThreadLocal<>();
 
-    public CurrentContext(AppProperties props, HouseholdService households) {
-        this.props = props;
-        this.households = households;
+    public void set(AuthUser user) {
+        CURRENT.set(user);
+    }
+
+    public void clear() {
+        CURRENT.remove();
+    }
+
+    public AuthUser user() {
+        AuthUser u = CURRENT.get();
+        if (u == null) throw new UnauthorizedException("Требуется вход");
+        return u;
     }
 
     public UUID userId() {
-        return props.defaultUserId();
+        return user().userId();
     }
 
     public UUID householdId() {
-        UUID id = householdId;
-        if (id == null) {
-            synchronized (this) {
-                if (householdId == null) {
-                    householdId = households.ensureFor(userId());
-                }
-                id = householdId;
-            }
-        }
-        return id;
+        return user().householdId();
     }
 }
