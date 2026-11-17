@@ -1,10 +1,14 @@
 package com.zapas.web;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -22,9 +26,15 @@ public final class Requests {
             @Min(1) @Max(3650) Integer total,
             @Min(0) @Max(3650) Integer thr) {}
 
-    public record ListCreate(@NotBlank @Size(max = 200) String name) {}
+    /** Количество, единица и заметка позиции. При PATCH, если объект передан, заменяет все три поля целиком. */
+    public record ListDetails(
+            @DecimalMax("999999") @Digits(integer = 6, fraction = 3) BigDecimal quantity,
+            @Size(max = 10) String unit,
+            @Size(max = 200) String note) {}
 
-    public record ListPatch(@Size(max = 200) String name, Boolean done) {}
+    public record ListCreate(@NotBlank @Size(max = 200) String name, @Valid ListDetails details) {}
+
+    public record ListPatch(@Size(max = 200) String name, Boolean done, @Valid ListDetails details) {}
 
     public record LogEvent(@NotBlank String type, UUID itemId, Map<String, Object> properties) {}
 

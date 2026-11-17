@@ -7,6 +7,7 @@ import com.zapas.repo.HouseholdRepository;
 import com.zapas.repo.ListRepository;
 import com.zapas.repo.StockRepository;
 import com.zapas.web.Dto;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -52,13 +53,19 @@ public class StateService {
                         i.notifiedAt() != null))
                 .toList();
         List<Dto.ListEntry> list = lists.findAll(h).stream()
-                .map(l -> new Dto.ListEntry(l.id(), l.name(), l.done(), l.stockItemId(), l.source()))
+                .map(l -> new Dto.ListEntry(l.id(), l.name(), l.done(), l.stockItemId(), l.source(),
+                        plain(l.details().quantity()), l.details().unit(), l.details().note()))
                 .toList();
         Dto.Log log = new Dto.Log(events.surprises(h),
                 events.count(h, "reminder_shown"),
                 events.count(h, "bought_early"));
 
         return new Dto.State(clock.offsetDays(h), items, list, log, fresh);
+    }
+
+    /** 2.000 → 2, 0.500 → 0.5; без экспоненты, чтобы в JSON было обычное число. */
+    private static BigDecimal plain(BigDecimal q) {
+        return q == null ? null : new BigDecimal(q.stripTrailingZeros().toPlainString());
     }
 
     @Transactional

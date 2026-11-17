@@ -1,5 +1,6 @@
 package com.zapas.web;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -11,8 +12,9 @@ public final class Dto {
     /** total — «срок, дней», start — момент начала отсчёта (epoch ms), thr — порог напоминания, дней. */
     public record Item(UUID id, String name, int total, long start, int thr, boolean notified) {}
 
-    /** from: manual | reminder | sudden */
-    public record ListEntry(UUID id, String name, boolean done, UUID itemId, String from) {}
+    /** from: manual | reminder | sudden; quantity и note могут быть null (не указаны). */
+    public record ListEntry(UUID id, String name, boolean done, UUID itemId, String from,
+                            BigDecimal quantity, String unit, String note) {}
 
     public record Surprise(String name, long at) {}
 

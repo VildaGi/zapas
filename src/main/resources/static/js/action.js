@@ -13,7 +13,7 @@ function startSession(u) {
     user = u;
     authChecked = true;
     authError = '';
-    loadMeta(u.id);
+    legacyChecked = false;
     tab = 'stock';
     edit = null;
     S = emptyState();
@@ -27,8 +27,6 @@ function startSession(u) {
 function endSession() {
     user = null;
     authChecked = true;
-    metaKey = null;
-    listMeta = {};
     S = emptyState();
     loaded = false;
     loadError = null;
@@ -46,13 +44,42 @@ function applyState(st) {
     S = st;
     loaded = true;
     loadError = null;
-    // Чистим meta для удалённых позиций, чтобы localStorage не пух
-    var alive = {};
-    st.list.forEach(function (l) { if (listMeta[l.id]) alive[l.id] = listMeta[l.id]; });
-    listMeta = alive;
-    saveMeta();
     notifyFresh(st.fresh);
     render();
+    if (!legacyChecked) {
+        legacyChecked = true;
+        migrateLegacyDetails();
+    }
+}
+
+// Однократный перенос: раньше количество, единица и заметка позиций списка хранились в localStorage
+// этого браузера. Отправляем их на сервер и удаляем ключ. Когда у всех данные уже перенесены,
+// эту функцию вместе с вызовом в applyState можно удалить.
+function migrateLegacyDetails() {
+    var key = 'zapas-list-meta-v2:' + user.id, raw, meta;
+    try { raw = localStorage.getItem(key); } catch (e) { return; }
+    if (!raw) return;
+    try { meta = JSON.parse(raw) || {}; } catch (e) { meta = {}; }
+
+    var todo = S.list.filter(function (l) {
+        var m = meta[l.id];
+        return m && (m.q || m.c) && l.quantity == null && !l.note;
+    });
+    var chain = Promise.resolve();
+    todo.forEach(function (l) {
+        var m = meta[l.id];
+        chain = chain.then(function () {
+            return API.patchList(l.id, { details: {
+                quantity: +m.q > 0 ? +m.q : null,
+                unit: m.u || 'шт',
+                note: m.c || null
+            } });
+        });
+    });
+    chain.then(function () {
+        try { localStorage.removeItem(key); } catch (e) {}
+        if (todo.length) return refresh(true);
+    }).catch(function () { /* ключ остаётся, попробуем при следующем входе */ });
 }
 
 // Загрузка состояния. silent — не показывать тост при ошибке (фоновое обновление).
@@ -92,6 +119,16 @@ function isTyping() {
     return document.getElementById('v').contains(a);
 }
 
+// Количество, единица и заметка из формы позиции списка. Пустое или нулевое количество = «не указано».
+function formDetails(f) {
+    var q = parseFloat(f.q.value);
+    return {
+        quantity: q > 0 ? q : null,
+        unit: f.u.value,
+        note: f.c.value.trim() || null
+    };
+}
+
 // ---------- формы (data-f на <form>) ----------
 function handleSubmit(e) {
     var f = e.target;
@@ -129,25 +166,7 @@ function handleSubmit(e) {
     if (kind === 'add-list') {
         var t = f.n.value.trim();
         if (!t) return;
-        var q = f.q.value === '' ? '' : +f.q.value;
-        var u = f.u.value;
-        var c = f.c.value.trim();
-
-        var before = {};
-        S.list.forEach(function (l) { before[l.id] = true; });
-
-        API.addList({ name: t }).then(function (st) {
-            var added = st.list.filter(function (l) { return !before[l.id]; })[0];
-            if (added) {
-                listMeta[added.id] = { q: q, u: u, c: c };
-                saveMeta();
-            }
-            applyState(st);
-        }).catch(function (e) {
-            if (e.status === 401) return;
-            toast('Ошибка: ' + e.message);
-            render();
-        });
+        act(API.addList({ name: t, details: formDetails(f) }));
     }
 
     if (kind === 'save-item') {
@@ -164,13 +183,7 @@ function handleSubmit(e) {
         var l = listById(id);
         var ln = f.n.value.trim();
         if (!l || !ln) return;
-        listMeta[id] = {
-            q: f.q.value === '' ? '' : +f.q.value,
-            u: f.u.value,
-            c: f.c.value.trim()
-        };
-        saveMeta();
-        act(API.patchList(id, { name: ln }), 'Сохранено', function () { edit = null; });
+        act(API.patchList(id, { name: ln, details: formDetails(f) }), 'Сохранено', function () { edit = null; });
     }
 }
 
@@ -209,7 +222,7 @@ function handleClick(e) {
         case 'sharelist':
             var text = S.list.filter(function (l) { return !l.done; })
                 .map(function (l) {
-                    var m = metaOf(l);
+                    var m = detailsOf(l);
                     var s = '• ' + l.name;
                     if (m.q) s += ' — ' + m.q + ' ' + (m.u || '');
                     if (m.c) s += ' (' + m.c + ')';
@@ -237,11 +250,7 @@ function handleClick(e) {
             break;
 
         case 'reset':
-            if (confirm('Удалить все данные?')) {
-                listMeta = {};
-                saveMeta();
-                act(API.reset());
-            }
+            if (confirm('Удалить все данные?')) act(API.reset());
             break;
 
         case 'edit':
@@ -258,7 +267,6 @@ function handleClick(e) {
             break;
 
         case 'dell':
-            if (listMeta[id]) { delete listMeta[id]; saveMeta(); }
             act(API.delList(id));
             break;
 

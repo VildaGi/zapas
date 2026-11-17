@@ -23,22 +23,12 @@ var edit = null;
 // Клиентские дополнения к позициям списка: { [listItemId]: {q, u, c} }.
 // Бэкенд пока не хранит quantity/unit/note в list_items через API —
 // держим их локально, чтобы UI и share работали как в артефакте.
-// Хранятся отдельно для каждого пользователя, чтобы на общем устройстве не смешивались.
-var META_KEY_BASE = 'zapas-list-meta-v2:';
-var metaKey = null;
-var listMeta = {};
+var legacyChecked = false;  // перенос старых заметок из localStorage уже пробовали в этой сессии
 
-function loadMeta(userId) {
-    metaKey = META_KEY_BASE + userId;
-    try { listMeta = JSON.parse(localStorage.getItem(metaKey) || '{}'); } catch (e) { listMeta = {}; }
+// Количество, единица и заметка позиции приходят с сервера
+function detailsOf(l) {
+    return { q: l.quantity == null ? '' : l.quantity, u: l.unit || 'шт', c: l.note || '' };
 }
-
-function saveMeta() {
-    if (!metaKey) return;
-    try { localStorage.setItem(metaKey, JSON.stringify(listMeta)); } catch (e) {}
-}
-
-function metaOf(l) { return listMeta[l.id] || {}; }
 
 // Время «как на сервере»: реальное + тестовое смещение в днях
 function now() {

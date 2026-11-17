@@ -74,13 +74,13 @@ public class ApiController {
 
     @PostMapping("/list")
     public Dto.State addListItem(@Valid @RequestBody Requests.ListCreate body) {
-        list.add(body.name());
+        list.add(body.name(), body.details());
         return state.snapshot();
     }
 
     @PatchMapping("/list/{id}")
     public Dto.State patchListItem(@PathVariable UUID id, @Valid @RequestBody Requests.ListPatch body) {
-        list.patch(id, body.name(), body.done());
+        list.patch(id, body.name(), body.done(), body.details());
         return state.snapshot();
     }
 

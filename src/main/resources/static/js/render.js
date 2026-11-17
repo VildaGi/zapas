@@ -148,7 +148,7 @@ function renderList(h, s) {
             o += editListForm(l);
             return;
         }
-        var m = metaOf(l);
+        var m = detailsOf(l);
         o += '<div class="li' + (l.done ? ' done' : '') + '">' +
             '<input type="checkbox" data-a="tick" data-id="' + l.id + '"' +
             (l.done ? ' checked' : '') + ' aria-label="Куплено">' +
@@ -174,7 +174,7 @@ function renderList(h, s) {
 }
 
 function editListForm(l) {
-    var m = metaOf(l);
+    var m = detailsOf(l);
     return '<form class="item ef" data-f="save-list" data-id="' + l.id + '">' +
         '<input name="n" value="' + esc(l.name) + '" required aria-label="Название">' +
         '<div class="r">' +

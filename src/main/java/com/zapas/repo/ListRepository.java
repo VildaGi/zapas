@@ -1,5 +1,6 @@
 package com.zapas.repo;
 
+import com.zapas.domain.ListDetails;
 import com.zapas.domain.ListItem;
 import java.time.Instant;
 import java.util.List;
@@ -14,7 +15,8 @@ public class ListRepository {
 
     private static final String SELECT = """
             select li.id, li.name, (li.status = 'purchased') as done,
-                   li.stock_item_id, li.product_id, li.source
+                   li.stock_item_id, li.product_id, li.source,
+                   li.quantity, li.unit, li.note
               from list_items li
               join shopping_lists sl on sl.id = li.list_id
              where sl.household_id = :h and not sl.is_archived and li.status <> 'cancelled'
@@ -26,7 +28,8 @@ public class ListRepository {
             rs.getBoolean("done"),
             rs.getObject("stock_item_id", UUID.class),
             rs.getObject("product_id", UUID.class),
-            rs.getString("source"));
+            rs.getString("source"),
+            new ListDetails(rs.getBigDecimal("quantity"), rs.getString("unit"), rs.getString("note")));
 
     private final JdbcClient jdbc;
 
@@ -63,14 +66,31 @@ public class ListRepository {
     }
 
     public UUID insert(UUID listId, UUID productId, UUID stockItemId, String name, String source, UUID userId) {
+        return insert(listId, productId, stockItemId, name, source, userId, ListDetails.EMPTY);
+    }
+
+    public UUID insert(UUID listId, UUID productId, UUID stockItemId, String name, String source, UUID userId,
+                       ListDetails d) {
         return jdbc.sql("""
-                insert into list_items(list_id, product_id, stock_item_id, name, source, added_by)
-                values (:l, :p, :s, :n, :src, :u)
+                insert into list_items(list_id, product_id, stock_item_id, name, source, added_by,
+                                       quantity, unit, note)
+                values (:l, :p, :s, :n, :src, :u, :q, :un, :note)
                 returning id
                 """)
                 .param("l", listId).param("p", productId).param("s", stockItemId)
                 .param("n", name).param("src", source).param("u", userId)
+                .param("q", d.quantity()).param("un", d.unit()).param("note", d.note())
                 .query(UUID.class).single();
+    }
+
+    public void updateDetails(UUID id, ListDetails d) {
+        jdbc.sql("""
+                update list_items
+                   set quantity = :q, unit = :un, note = :note, updated_at = now()
+                 where id = :id
+                """)
+                .param("q", d.quantity()).param("un", d.unit()).param("note", d.note()).param("id", id)
+                .update();
     }
 
     public void setPurchased(UUID id, UUID userId, Instant at) {
